@@ -1,0 +1,2 @@
+debian/bin/LotteryTicketsd usr/bin
+src/LotteryTicketsd usr/lib/LotteryTickets

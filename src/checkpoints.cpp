@@ -31,7 +31,6 @@ namespace Checkpoints
     static MapCheckpoints mapCheckpointsTestnet =
         boost::assign::map_list_of
         ( 0, hashGenesisBlockOfficial )
-		( 124000, uint256("0x0000000088355d065f74af634df1dd05587209317a068552ad905486420ee838"))
         ;
 
     bool CheckHardened(int nHeight, const uint256& hash)
@@ -356,12 +355,19 @@ namespace Checkpoints
     // Is the sync-checkpoint too old?
     bool IsSyncCheckpointTooOld(unsigned int nSeconds)
     {
+
+// WM - Defeat the "checkpoint too old" check, not needed now that LotteryTickets is launched and stable.
+/*
         LOCK(cs_hashSyncCheckpoint);
         // sync-checkpoint should always be accepted block
         assert(mapBlockIndex.count(hashSyncCheckpoint));
         const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
         return (pindexSync->GetBlockTime() + nSeconds < GetAdjustedTime());
+*/
+
+        return false;
     }
+
 }
 
 // ppcoin: sync-checkpoint master key

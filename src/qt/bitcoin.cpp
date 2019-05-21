@@ -14,7 +14,9 @@
 
 #include <QApplication>
 #include <QMessageBox>
-#include <QTextCodec>
+ #if QT_VERSION < 0x050000
+ #include <QTextCodec>
+ #endif
 #include <QLocale>
 #include <QTranslator>
 #include <QSplashScreen>
@@ -115,11 +117,12 @@ int main(int argc, char *argv[])
 {
     // Do this early as we don't want to bother initializing if we are just calling IPC
     ipcScanRelay(argc, argv);
-
-    // Internal string conversion is all UTF-8
-    QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));
-    QTextCodec::setCodecForCStrings(QTextCodec::codecForTr());
-
+ 
+ #if QT_VERSION < 0x050000
+     // Internal string conversion is all UTF-8
+     QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));
+     QTextCodec::setCodecForCStrings(QTextCodec::codecForTr());
+ #endif
     Q_INIT_RESOURCE(bitcoin);
     QApplication app(argc, argv);
 
@@ -143,7 +146,7 @@ int main(int argc, char *argv[])
     // Application identification (must be set before OptionsModel is initialized,
     // as it is used to locate QSettings)
     app.setOrganizationName("LotteryTickets");
-    app.setOrganizationDomain("TODO: replace");
+    app.setOrganizationDomain("LotteryTickets.su");
     if(GetBoolArg("-testnet")) // Separate UI settings for testnet
         app.setApplicationName("LotteryTickets-Qt-testnet");
     else
@@ -189,7 +192,7 @@ int main(int argc, char *argv[])
 
     // Show help message immediately after parsing command-line options (for "-lang") and setting locale,
     // but before showing splash screen.
-    if (mapArgs.count("-?") || mapArgs.count("--help"))
+    if (mapArgs.count("-?") || mapArgs.count("--h") || mapArgs.count("--help"))
     {
         GUIUtil::HelpMessageBox help;
         help.showOrPrint();
@@ -253,7 +256,7 @@ int main(int argc, char *argv[])
                 window.setWalletModel(0);
                 guiref = 0;
             }
-            // Shutdown the core and its threads, but don't exit Bitcoin-Qt here
+            // Shutdown the core and its threads, but don't exit LotteryTickets-qt here
             Shutdown(NULL);
         }
         else

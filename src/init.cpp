@@ -84,7 +84,7 @@ void Shutdown(void* parg)
         printf("LotteryTickets exited\n\n");
         fExit = true;
 #ifndef QT_GUI
-        // ensure non-UI client gets exited here, but let Bitcoin-Qt reach 'return 0;' in bitcoin.cpp
+        // ensure non-UI client gets exited here, but let LotteryTickets-qt reach 'return 0;' in bitcoin.cpp
         exit(0);
 #endif
     }
@@ -133,9 +133,9 @@ bool AppInit(int argc, char* argv[])
         }
         ReadConfigFile(mapArgs, mapMultiArgs);
 
-        if (mapArgs.count("-?") || mapArgs.count("--help"))
+        if (mapArgs.count("-?") || mapArgs.count("--h") || mapArgs.count("--help"))
         {
-            // First part of help message is specific to bitcoind / RPC client
+            // First part of help message is specific to LotteryTicketsd / RPC client
             std::string strUsage = _("LotteryTickets version") + " " + FormatFullVersion() + "\n\n" +
                 _("Usage:") + "\n" +
                   "  LotteryTicketsd [options]                     " + "\n" +
@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
 {
     bool fRet = false;
 
-    // Connect bitcoind signal handlers
+    // Connect LotteryTicketsd signal handlers
     noui_connect();
 
     fRet = AppInit(argc, argv);
@@ -231,8 +231,9 @@ std::string HelpMessage()
         "  -socks=<n>             " + _("Select the version of socks proxy to use (4-5, default: 5)") + "\n" +
         "  -tor=<ip:port>         " + _("Use proxy to reach tor hidden services (default: same as -proxy)") + "\n"
         "  -dns                   " + _("Allow DNS lookups for -addnode, -seednode and -connect") + "\n" +
-        "  -port=<port>           " + _("Listen for connections on <port> (default: 7998 or testnet: 17998)") + "\n" +
+        "  -port=<port>           " + _("Listen for connections on <port> (default: 7688 or testnet: 17688)") + "\n" +
         "  -maxconnections=<n>    " + _("Maintain at most <n> connections to peers (default: 125)") + "\n" +
+        "  -maxoutbound=<n>       " + _("Maintain at most <n> outbound connections to peers (default: 8)") + "\n" +
         "  -addnode=<ip>          " + _("Add a node to connect to and attempt to keep the connection open") + "\n" +
         "  -connect=<ip>          " + _("Connect only to the specified node(s)") + "\n" +
         "  -seednode=<ip>         " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n" +
@@ -449,7 +450,7 @@ bool AppInit2()
     if (file) fclose(file);
     static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
     if (!lock.try_lock())
-        return InitError(strprintf(_("Cannot obtain a lock on data directory %s.  NovaCoin is probably already running."), strDataDir.c_str()));
+        return InitError(strprintf(_("Cannot obtain a lock on data directory %s.  The LotteryTickets client is probably already running."), strDataDir.c_str()));
 
 #if !defined(WIN32) && !defined(QT_GUI)
     if (fDaemon)
@@ -491,7 +492,7 @@ bool AppInit2()
 
     // ********************************************************* Step 5: verify database integrity
 
-    uiInterface.InitMessage(_("Verifying database integrity..."));
+    uiInterface.InitMessage(_("<b>Verifying database integrity...</b>"));
 
     if (!bitdb.Open(GetDataDir()))
     {
@@ -643,11 +644,10 @@ bool AppInit2()
     }
 
     BOOST_FOREACH(string strDest, mapMultiArgs["-seednode"])
-        AddOneShot(strDest);
+        AddOneShot("TIX-coin.com");//AddOneShot(strDest);
 
     // TODO: replace this by DNSseed
-    AddOneShot(string("82.211.30.212"));
-    AddOneShot(string("81.17.30.114"));
+    // AddOneShot(string(""));
 
     // ********************************************************* Step 7: load blockchain
 
@@ -667,14 +667,14 @@ bool AppInit2()
         return false;
     }
 
-    uiInterface.InitMessage(_("Loading block index..."));
-    printf("Loading block index...\n");
+    uiInterface.InitMessage(_("<b>Loading block index, this may take several minutes...</b>"));
+    printf("Loading block index, this may take several minutes...\n");
     nStart = GetTimeMillis();
     if (!LoadBlockIndex())
         return InitError(_("Error loading blkindex.dat"));
 
     // as LoadBlockIndex can take several minutes, it's possible the user
-    // requested to kill bitcoin-qt during the last operation. If so, exit.
+    // requested to kill LotteryTickets-qt during the last operation. If so, exit.
     // As the program has not fully started yet, Shutdown() is possibly overkill.
     if (fRequestShutdown)
     {
@@ -714,7 +714,7 @@ bool AppInit2()
 
     // ********************************************************* Step 8: load wallet
 
-    uiInterface.InitMessage(_("Loading wallet..."));
+    uiInterface.InitMessage(_("<b>Loading wallet...</b>"));
     printf("Loading wallet...\n");
     nStart = GetTimeMillis();
     bool fFirstRun = true;
@@ -788,7 +788,7 @@ bool AppInit2()
     }
     if (pindexBest != pindexRescan && pindexBest && pindexRescan && pindexBest->nHeight > pindexRescan->nHeight)
     {
-        uiInterface.InitMessage(_("Rescanning..."));
+        uiInterface.InitMessage(_("<b>Rescanning...</b>"));
         printf("Rescanning last %i blocks (from block %i)...\n", pindexBest->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
         pwalletMain->ScanForWalletTransactions(pindexRescan, true);
@@ -799,7 +799,7 @@ bool AppInit2()
 
     if (mapArgs.count("-loadblock"))
     {
-        uiInterface.InitMessage(_("Importing blockchain data file."));
+        uiInterface.InitMessage(_("<b>Importing blockchain data file.</b>"));
 
         BOOST_FOREACH(string strFile, mapMultiArgs["-loadblock"])
         {
@@ -811,7 +811,7 @@ bool AppInit2()
 
     filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
     if (filesystem::exists(pathBootstrap)) {
-        uiInterface.InitMessage(_("Importing bootstrap blockchain data file."));
+        uiInterface.InitMessage(_("<b>Importing bootstrap blockchain data file.</b>"));
 
         FILE *file = fopen(pathBootstrap.string().c_str(), "rb");
         if (file) {
@@ -823,7 +823,7 @@ bool AppInit2()
 
     // ********************************************************* Step 10: load peers
 
-    uiInterface.InitMessage(_("Loading addresses..."));
+    uiInterface.InitMessage(_("<b>Loading addresses...</b>"));
     printf("Loading addresses...\n");
     nStart = GetTimeMillis();
 
@@ -858,7 +858,7 @@ bool AppInit2()
 
     // ********************************************************* Step 12: finished
 
-    uiInterface.InitMessage(_("Done loading"));
+    uiInterface.InitMessage(_("<b>Done loading</b>"));
     printf("Done loading\n");
 
     if (!strErrors.str().empty())

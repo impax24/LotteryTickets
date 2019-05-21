@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2013 LotteryTickets developers and contributors
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -25,7 +26,16 @@
 using namespace std;
 using namespace boost;
 
-static const int MAX_OUTBOUND_CONNECTIONS = 8;
+
+// WM - static const int MAX_OUTBOUND_CONNECTIONS = 8;
+#define DEFAULT_MAX_CONNECTIONS         125    // WM - Default value for -maxconnections= parameter.
+#define MIN_CONNECTIONS                 8      // WM - Lowest value we allow for -maxconnections= (never ever set less than 2!).
+#define MAX_CONNECTIONS                 1000   // WM - Max allowed value for -maxconnections= parameter.  Getting kinda excessive, eh?
+
+#define DEFAULT_OUTBOUND_CONNECTIONS    8      // WM - Reasonable default of 8 outbound connections for -maxoutbound= parameter.
+#define MIN_OUTBOUND_CONNECTIONS        4      // WM - Lowest we allow for -maxoutbound= parameter shall be 4 connections (never ever set below 2).
+#define MAX_OUTBOUND_CONNECTIONS        100    // WM - This no longer means what it used to.  Outbound conn count now runtime configurable.
+
 
 void ThreadMessageHandler2(void* parg);
 void ThreadSocketHandler2(void* parg);
@@ -57,7 +67,7 @@ static bool vfLimited[NET_MAX] = {};
 static CNode* pnodeLocalHost = NULL;
 CAddress addrSeenByPeer(CService("0.0.0.0", 0), nLocalServices);
 uint64 nLocalHostNonce = 0;
-array<int, THREAD_MAX> vnThreadsRunning;
+boost::array<int, THREAD_MAX> vnThreadsRunning;
 static std::vector<SOCKET> vhListenSocket;
 CAddrMan addrman;
 
@@ -86,6 +96,63 @@ unsigned short GetListenPort()
 {
     return (unsigned short)(GetArg("-port", GetDefaultPort()));
 }
+
+
+
+//
+// int GetMaxConnections( void )
+//
+//    WM - Function to determine maximum allowed in+out connections.
+//
+//    Parameters: None
+//    Returns: Maximum connections allowed (int)
+//
+
+int GetMaxConnections()
+{
+    int count;
+
+    // Config'eth away..
+    count = GetArg( "-maxconnections", DEFAULT_MAX_CONNECTIONS );
+    
+    // Ensure some level of sanity amount the max connection count.
+    count = max( count, MIN_CONNECTIONS );
+    count = min( count, MAX_CONNECTIONS );
+    
+    //printf( "GetMaxConnections() = %d\n", count );
+
+    return count;
+}
+
+
+
+//
+// int GetMaxOutboundConnections( void )
+//
+//    WM - Function to determine maximum allowed outbound connections.
+//
+//    Parameters: None
+//    Returns: Maximum outbound connections allowed (int)
+//
+
+int GetMaxOutboundConnections()
+{
+    int count;
+
+    // What sayeth the config parameters?
+    count = GetArg( "-maxoutbound", DEFAULT_OUTBOUND_CONNECTIONS );
+    
+    // Did someone set it too low or too high?  Shame, shame..
+    count = max( count, MIN_OUTBOUND_CONNECTIONS );
+    count = min( count, MAX_OUTBOUND_CONNECTIONS );
+    count = min( count, GetMaxConnections() );
+
+    //printf( "GetMaxOutboundConnections() = %d\n", count );
+    
+    return count;
+}
+
+
 
 void CNode::PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd)
 {
@@ -140,7 +207,7 @@ CAddress GetLocalAddress(const CNetAddr *paddrPeer)
 bool RecvLine(SOCKET hSocket, string& strLine)
 {
     strLine = "";
-    loop
+   while (true)
     {
         char c;
         int nBytes = recv(hSocket, &c, 1, 0);
@@ -313,7 +380,7 @@ bool GetMyExternalIP2(const CService& addrConnect, const char* pszGet, const cha
     {
         if (strLine.empty()) // HTTP response is separated from headers by blank line
         {
-            loop
+           while (true)
             {
                 if (!RecvLine(hSocket, strLine))
                 {
@@ -665,7 +732,7 @@ void ThreadSocketHandler2(void* parg)
     list<CNode*> vNodesDisconnected;
     unsigned int nPrevNodeCount = 0;
 
-    loop
+   while (true)
     {
         //
         // Disconnect nodes
@@ -830,7 +897,8 @@ void ThreadSocketHandler2(void* parg)
                 if (nErr != WSAEWOULDBLOCK)
                     printf("socket error accept failed: %d\n", nErr);
             }
-            else if (nInbound >= GetArg("-maxconnections", 125) - MAX_OUTBOUND_CONNECTIONS)
+// WM            else if (nInbound >= GetArg("-maxconnections", DEFAULT_MAX_CONNECTIONS ) - /* WM - MAX_OUTBOUND_CONNECTIONS */ GetMaxOutboundConnections() )
+            else if ( nInbound >= GetMaxConnections() - GetMaxOutboundConnections() )
             {
                 {
                     LOCK(cs_setservAddNodeAddresses);
@@ -1078,7 +1146,7 @@ void ThreadMapPort2(void* parg)
         else
             printf("UPnP Port Mapping successful.\n");
         int i = 1;
-        loop {
+       while (true) {
             if (fShutdown || !fUseUPnP)
             {
                 r = UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, port.c_str(), "TCP", 0);
@@ -1113,7 +1181,7 @@ void ThreadMapPort2(void* parg)
         freeUPNPDevlist(devlist); devlist = 0;
         if (r != 0)
             FreeUPNPUrls(&urls);
-        loop {
+       while (true) {
             if (fShutdown || !fUseUPnP)
                 return;
             Sleep(2000);
@@ -1133,6 +1201,7 @@ void MapPort()
 void MapPort()
 {
     // Intentionally left blank.
+    // Intentionally left slightly less blank than the previous line.
 }
 #endif
 
@@ -1149,7 +1218,20 @@ void MapPort()
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 static const char *strDNSSeed[][2] = {
-    //{"LotteryTickets.org", "seed.LotteryTickets.su"},
+  
+   {"39.98.78.212","39.98.78.212"},
+   {"43.243.168.104","43.243.168.104"},
+   
+//   {"47.95.194.175","47.95.194.175"},
+//   {"47.94.14.246","47.94.14.246"},
+   
+//   {"lotterytickets.ink","lotterytickets.ink"},
+   
+//   {"47.94.14.246","47.94.14.246"},
+//   {"47.93.8.237","47.93.8.237"},
+//   {"154.209.1.96","154.209.1.96"},
+ 
+
 };
 
 void ThreadDNSAddressSeed(void* parg)
@@ -1178,11 +1260,12 @@ void ThreadDNSAddressSeed2(void* parg)
     printf("ThreadDNSAddressSeed started\n");
     int found = 0;
 
-    if (!fTestNet)
+
+    if( !fTestNet )
     {
         printf("Loading addresses from DNS seeds (could take a while)\n");
 
-        for (unsigned int seed_idx = 0; seed_idx < ARRAYLEN(strDNSSeed); seed_idx++) {
+        for( int seed_idx = 0; seed_idx < (int) ARRAYLEN( strDNSSeed ); seed_idx++ ) {
             if (HaveNameProxy()) {
                 AddOneShot(strDNSSeed[seed_idx][1]);
             } else {
@@ -1203,6 +1286,7 @@ void ThreadDNSAddressSeed2(void* parg)
             }
         }
     }
+    
 
     printf("%d addresses found from DNS seeds\n", found);
 }
@@ -1220,7 +1304,7 @@ void ThreadDNSAddressSeed2(void* parg)
 
 unsigned int pnSeed[] =
 {
-    0x90EF78BC, 0x33F1C851, 0x36F1C851, 0xC6F5C851,
+
 };
 
 void DumpAddresses()
@@ -1349,7 +1433,7 @@ void ThreadOpenConnections2(void* parg)
 
     // Initiate network connections
     int64 nStart = GetTime();
-    loop
+   while (true)
     {
         ProcessOneShot();
 
@@ -1408,7 +1492,7 @@ void ThreadOpenConnections2(void* parg)
         int64 nANow = GetAdjustedTime();
 
         int nTries = 0;
-        loop
+       while (true)
         {
             // use an nUnkBias between 10 (no outgoing connections) and 90 (8 outgoing connections)
             CAddress addr = addrman.Select(10 + min(nOutbound,8)*10);
@@ -1501,7 +1585,7 @@ void ThreadOpenAddedConnections2(void* parg)
             }
         }
     }
-    loop
+   while (true)
     {
         vector<vector<CService> > vservConnectAddresses = vservAddressesToAdd;
         // Attempt to connect to each IP for each addnode entry until at least one is successful per addnode entry
@@ -1727,7 +1811,11 @@ bool BindListenPort(const CService &addrBind, string& strError)
     // and enable it by default or not. Try to enable it, if possible.
     if (addrBind.IsIPv6()) {
 #ifdef IPV6_V6ONLY
+#ifdef WIN32
+        setsockopt(hListenSocket, IPPROTO_IPV6, IPV6_V6ONLY, (const char*)&nOne, sizeof(int));
+#else
         setsockopt(hListenSocket, IPPROTO_IPV6, IPV6_V6ONLY, (void*)&nOne, sizeof(int));
+#endif
 #endif
 #ifdef WIN32
         int nProtLevel = 10 /* PROTECTION_LEVEL_UNRESTRICTED */;
@@ -1829,7 +1917,7 @@ void StartNode(void* parg)
 
     if (semOutbound == NULL) {
         // initialize semaphore
-        int nMaxOutbound = min(MAX_OUTBOUND_CONNECTIONS, (int)GetArg("-maxconnections", 125));
+        int nMaxOutbound = min( GetMaxOutboundConnections(), GetMaxConnections() );
         semOutbound = new CSemaphore(nMaxOutbound);
     }
 
@@ -1842,13 +1930,11 @@ void StartNode(void* parg)
     // Start threads
     //
 
-/*
     if (!GetBoolArg("-dnsseed", true))
         printf("DNS seeding disabled\n");
-    else
-        if (!NewThread(ThreadDNSAddressSeed, NULL))
+    else if (!NewThread(ThreadDNSAddressSeed, NULL))
             printf("Error: NewThread(ThreadDNSAddressSeed) failed\n");
-*/
+ 
 
     if (!GetBoolArg("-dnsseed", false))
         printf("DNS seeding disabled\n");
@@ -1860,8 +1946,8 @@ void StartNode(void* parg)
         MapPort();
 
     // Get addresses from IRC and advertise ours
-    if (!NewThread(ThreadIRCSeed, NULL))
-        printf("Error: NewThread(ThreadIRCSeed) failed\n");
+    // if (!NewThread(ThreadIRCSeed, NULL))
+        // printf("Error: NewThread(ThreadIRCSeed) failed\n");
 
     // Send and receive from sockets, accept connections
     if (!NewThread(ThreadSocketHandler, NULL))
@@ -1898,7 +1984,7 @@ bool StopNode()
     nTransactionsUpdated++;
     int64 nStart = GetTime();
     if (semOutbound)
-        for (int i=0; i<MAX_OUTBOUND_CONNECTIONS; i++)
+        for( int i = 0; i < GetMaxOutboundConnections(); i++ )
             semOutbound->post();
     do
     {

@@ -1,0 +1,11 @@
+[Protocol]
+exec=LotteryTickets-qt '%u'
+protocol=LotteryTickets
+input=none
+output=none
+helper=true
+listing=
+reading=false
+writing=false
+makedir=false
+deleting=false

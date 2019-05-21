@@ -21,9 +21,9 @@ Setup
 -----
 After completing windows setup then run windows command line (cmd)
   cd daemon
-  LotteryTicketsd
-You would need to create a configuration file LotteryTickets.conf in the default
-wallet directory. Grant access to LotteryTicketsd.exe in anti-virus and firewall
+  novacoind
+You would need to create a configuration file novacoin.conf in the default
+wallet directory. Grant access to novacoind.exe in anti-virus and firewall
 applications if necessary.
 
 The software automatically finds other nodes to connect to.  You can
@@ -37,10 +37,10 @@ Upgrade
 -------
 All you existing coins/transactions should be intact with the upgrade.
 To upgrade from 0.2.x, first backup wallet
-LotteryTicketsd backupwallet <destination_backup_file>
+novacoind backupwallet <destination_backup_file>
 Then shutdown ppcoind by
-LotteryTicketsd stop
-Start up the new LotteryTicketsd (0.3.0).
+novacoind stop
+Start up the new novacoind (0.3.0).
 
 
 ------------------
