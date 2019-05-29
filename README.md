@@ -1,5 +1,6 @@
 LotteryTickets Official Development Tree.
 
+最新版彩币钱包使用方法，把钱包数据清空，重新同步
 Many thanks to WindMaster for initially setting up this repository to continue development and promotion of LotteryTickets after the original developer, GitHub user pocopoco, went paka paka. Due to community feedback and the need for an updated and stable client, this is now the official LotteryTickets Development Tree.
 
 LotteryTickets - a hybrid scrypt PoW + PoS based cryptocurrency that uses the scrypt + chacha20/8 (N,1,1) hashing algorithm, with N gradually rising over time to increase memory requirements. This, in theory, makes LotteryTickets one of the very few alt coins that can be mined efficiently on a CPU.
